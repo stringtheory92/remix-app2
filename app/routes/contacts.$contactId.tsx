@@ -1,9 +1,10 @@
-import { LoaderFunctionArgs, json } from "@remix-run/node";
-import { Form, useLoaderData } from "@remix-run/react";
+import { json } from "@remix-run/node";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import { Form, useLoaderData, useFetcher } from "@remix-run/react";
 import type { FunctionComponent } from "react";
 
 import type { ContactRecord } from "../data";
-import { getContact } from "../data";
+import { getContact, updateContact } from "../data";
 import invariant from "tiny-invariant";
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
@@ -15,17 +16,16 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
   return json({ contact });
 };
 
+export const action = async ({ params, request }: ActionFunctionArgs) => {
+  invariant(params.contactId, "Missing contactId param");
+  const formData = await request.formData();
+  return updateContact(params.contactId, {
+    favorite: formData.get("favorite") === "true",
+  });
+};
+
 export default function Contact() {
   const { contact } = useLoaderData<typeof loader>();
-
-  //   const contact = {
-  //     first: "Your",
-  //     last: "Name",
-  //     avatar: "https://placebacon.net/200/200",
-  //     twitter: "your_handle",
-  //     notes: "Some notes",
-  //     favorite: true,
-  //   };
 
   return (
     <div id="contact">
@@ -87,10 +87,13 @@ export default function Contact() {
 const Favorite: FunctionComponent<{
   contact: Pick<ContactRecord, "favorite">;
 }> = ({ contact }) => {
-  const favorite = contact.favorite;
+  const fetcher = useFetcher();
+  const favorite = fetcher.formData
+    ? fetcher.formData.get("favorite") === "true"
+    : contact.favorite;
 
   return (
-    <Form method="post">
+    <fetcher.Form method="post">
       <button
         aria-label={favorite ? "Remove from favorites" : "Add to favorites"}
         name="favorite"
@@ -98,6 +101,6 @@ const Favorite: FunctionComponent<{
       >
         {favorite ? "★" : "☆"}
       </button>
-    </Form>
+    </fetcher.Form>
   );
 };
